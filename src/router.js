@@ -1,35 +1,39 @@
 import { runAgy } from '../providers/antigravity.js';
+import { runShell } from './shell.js';
+import { truncate } from '../utils/helpers.js';
 
-export async function handleTelegramCommand(text) {
-  const trimmed = (text || '').trim();
+export async function handleCommand(text) {
+  const input = (text || '').trim();
 
-  if (trimmed === '/start') {
-    return '✅ AI Dev Agent v2 running.\n\nUse: /agy your task';
-  }
-
-  if (trimmed === '/help') {
+  if (input === '/start' || input === '/help') {
     return [
+      'AI Dev Agent v2 is running.',
+      '',
       'Commands:',
-      '/agy <task> - Run Antigravity CLI',
-      '/health - Check bot health',
-      '/help - Show help'
+      '/health - check bot status',
+      '/agy your prompt - ask Antigravity CLI',
+      '/shell command - optional shell command',
+      '',
+      'Example:',
+      '/agy Say hello in Bangla',
     ].join('\n');
   }
 
-  if (trimmed === '/health') {
-    return '✅ Bot OK. Antigravity command path configured.';
+  if (input === '/health') {
+    return '✅ Bot running. Use /agy Say hello in Bangla';
   }
 
-  if (trimmed.startsWith('/agy')) {
-    const prompt = trimmed.replace(/^\/agy(@\w+)?\s*/i, '').trim();
-    if (!prompt) return 'Please write a task after /agy. Example: /agy Say hello in Bangla';
-
+  if (input.startsWith('/agy')) {
+    const prompt = input.replace(/^\/agy\s*/i, '').trim();
     const result = await runAgy(prompt);
-    if (!result.ok) {
-      return `❌ Antigravity failed\n\n${result.output}`;
-    }
-    return result.output;
+    return truncate(result.output || 'No output returned.');
   }
 
-  return 'Unknown command. Use /help';
+  if (input.startsWith('/shell')) {
+    const command = input.replace(/^\/shell\s*/i, '').trim();
+    const result = await runShell(command);
+    return truncate(result.output || 'No output returned.');
+  }
+
+  return 'Unknown command. Use /help or /agy your prompt';
 }

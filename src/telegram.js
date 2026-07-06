@@ -1,53 +1,69 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { config } from './config.js';
-import { handleTelegramCommand } from './router.js';
-import { error, log } from '../utils/logger.js';
+import { handleCommand } from './router.js';
+import { logger } from '../utils/logger.js';
 
-function isAllowed(userId) {
-  if (!config.allowedTelegramUserIds.length) return true;
-  return config.allowedTelegramUserIds.includes(String(userId));
+function isAllowedUser(msg) {
+  const userId = String(msg.from?.id || '');
+  return config.allowedTelegramUserIds.includes(userId);
 }
 
-function chunkMessage(text, size = 3900) {
-  const chunks = [];
-  for (let i = 0; i < text.length; i += size) chunks.push(text.slice(i, i + size));
-  return chunks;
-}
+export function startTelegramBot() {
+  const bot = new TelegramBot(config.telegramBotToken, { polling: true });
 
-export function startTelegram() {
-  if (!config.telegramToken) {
-    log('Telegram bot disabled: TELEGRAM_BOT_TOKEN not found');
-    return null;
-  }
-
-  const bot = new TelegramBot(config.telegramToken, { polling: true });
+  bot.on('polling_error', (error) => {
+    logger.error('telegram_polling_error', { message: error.message });
+  });
 
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    const userId = msg.from?.id;
     const text = msg.text || '';
 
-    if (!isAllowed(userId)) {
+    logger.info('telegram_message_received', {
+      chatId,
+      userId: msg.from?.id,
+      textLength: text.length,
+    });
+
+    if (!isAllowedUser(msg)) {
       await bot.sendMessage(chatId, '⛔ You are not allowed to use this bot.');
       return;
     }
 
-    try {
-      log('Telegram message received', { userId, text });
-      const loading = await bot.sendMessage(chatId, '⏳ Antigravity কাজ করছে...');
-      const reply = await handleTelegramCommand(text);
+    if (!text.trim()) {
+      await bot.sendMessage(chatId, 'Please send a text command.');
+      return;
+    }
 
-      await bot.deleteMessage(chatId, loading.message_id).catch(() => {});
-      for (const part of chunkMessage(reply)) {
-        await bot.sendMessage(chatId, part);
+    let workingMessage = null;
+    if (text.startsWith('/agy')) {
+      workingMessage = await bot.sendMessage(chatId, '⏳ Antigravity কাজ করছে...');
+    }
+
+    try {
+      const response = await handleCommand(text);
+      if (workingMessage) {
+        await bot.editMessageText(response, {
+          chat_id: chatId,
+          message_id: workingMessage.message_id,
+        });
+      } else {
+        await bot.sendMessage(chatId, response);
       }
-    } catch (err) {
-      error('Telegram handler error', err);
-      await bot.sendMessage(chatId, `❌ Error: ${err.message}`);
+    } catch (error) {
+      logger.error('telegram_handler_failed', { message: error.message });
+      const errorText = `❌ Error: ${error.message}`;
+      if (workingMessage) {
+        await bot.editMessageText(errorText, {
+          chat_id: chatId,
+          message_id: workingMessage.message_id,
+        });
+      } else {
+        await bot.sendMessage(chatId, errorText);
+      }
     }
   });
 
-  bot.on('polling_error', (err) => error('Telegram polling error', err.message));
-  log('Telegram bot started');
+  logger.info('telegram_bot_started');
   return bot;
 }

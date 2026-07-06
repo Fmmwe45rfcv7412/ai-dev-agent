@@ -4,45 +4,36 @@ Telegram controlled AI development agent powered by Antigravity CLI.
 
 ## Commands
 
+- `/start` - show help
+- `/health` - bot health
+- `/agy your prompt` - run Antigravity CLI
+- `/shell command` - optional shell command, disabled by default
+
+## Zeabur environment variables
+
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token
+ALLOWED_TELEGRAM_USER_IDS=your_telegram_user_id
+AGY_BIN=/data/.local/bin/agy
+AGY_CWD=/workspace
+AGY_TIMEOUT_MS=120000
+PORT=3000
+NODE_ENV=production
+ENABLE_SHELL=false
+```
+
+## Telegram test
+
 ```text
-/start
-/help
 /health
 /agy Say hello in Bangla
 ```
 
-## Zeabur Environment Variables
+## Notes
 
-```env
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-ALLOWED_TELEGRAM_USER_IDS=your_telegram_user_id
-PORT=3000
-WORKSPACE_DIR=/workspace
-AGY_BIN=/data/.local/bin/agy
-AGY_TIMEOUT_MS=120000
+If `/agy` hangs, check Zeabur logs and test inside terminal:
+
+```bash
+cd /workspace
+/data/.local/bin/agy -p "Say hello in Bangla"
 ```
-
-## Deploy
-
-1. Upload this project to GitHub.
-2. Connect repo to Zeabur.
-3. Add environment variables.
-4. Redeploy.
-5. Test in Telegram:
-
-```text
-/agy Say hello in Bangla
-```
-
-## Why this fixes hanging
-
-This version uses `execFile()` with:
-
-- absolute Antigravity path
-- fixed PATH
-- non-interactive environment
-- timeout protection
-- workspace directory creation
-- stdout/stderr capture
-
-So if Antigravity hangs or fails, Telegram will return a readable error instead of waiting forever.

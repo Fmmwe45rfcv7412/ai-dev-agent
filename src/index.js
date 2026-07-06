@@ -1,31 +1,23 @@
-import express from 'express';
-import { config } from './config.js';
-import { startTelegram } from './telegram.js';
-import { log } from '../utils/logger.js';
+import { validateConfig } from './config.js';
+import { startHealthServer } from './health.js';
+import { startTelegramBot } from './telegram.js';
+import { logger } from '../utils/logger.js';
 
-const app = express();
-app.use(express.json());
-
-app.get('/', (_req, res) => {
-  res.json({ ok: true, name: 'AI Dev Agent v2' });
+process.on('unhandledRejection', (reason) => {
+  logger.error('unhandled_rejection', { reason: String(reason) });
 });
 
-app.get('/health', (_req, res) => {
-  res.json({
-    ok: true,
-    service: 'ai-dev-agent',
-    telegram: Boolean(config.telegramToken),
-    agyBin: config.agyBin,
-    workspaceDir: config.workspaceDir
-  });
+process.on('uncaughtException', (error) => {
+  logger.error('uncaught_exception', { message: error.message, stack: error.stack });
+  process.exit(1);
 });
 
-app.listen(config.port, () => {
-  log(`HTTP server running on port ${config.port}`);
-});
-
-startTelegram();
-
-if (!config.discordToken) {
-  log('Discord bot disabled: DISCORD_BOT_TOKEN not found');
+try {
+  validateConfig();
+  startHealthServer();
+  startTelegramBot();
+  logger.info('ai_dev_agent_started', { version: '2.0.0' });
+} catch (error) {
+  logger.error('startup_failed', { message: error.message });
+  process.exit(1);
 }

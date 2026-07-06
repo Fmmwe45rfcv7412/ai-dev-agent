@@ -1,56 +1,72 @@
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { access } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { config } from '../src/config.js';
+import { cleanOutput } from '../utils/helpers.js';
+import { logger } from '../utils/logger.js';
 
-export function runAgy(prompt, options = {}) {
-  const cwd = options.cwd || config.workspaceDir;
-  const timeout = options.timeout || config.agyTimeoutMs;
+export async function checkAgyBinary() {
+  await access(config.agyBin, constants.X_OK);
+  return true;
+}
 
-  if (!existsSync(cwd)) mkdirSync(cwd, { recursive: true });
-
+export function runAgy(prompt) {
   return new Promise((resolve) => {
-    const env = {
-      ...process.env,
-      HOME: process.env.HOME || '/root',
-      PATH: `/data/.local/bin:/root/.local/bin:${process.env.PATH || ''}`,
-      CI: '1',
-      NO_COLOR: '1',
-      TERM: 'xterm'
-    };
+    const startedAt = Date.now();
+
+    if (!prompt || !prompt.trim()) {
+      resolve({ ok: false, output: 'Please provide a prompt after /agy.' });
+      return;
+    }
+
+    logger.info('agy_start', {
+      cwd: config.agyCwd,
+      bin: config.agyBin,
+      promptLength: prompt.length,
+    });
 
     const child = execFile(
       config.agyBin,
       ['-p', prompt],
       {
-        cwd,
-        env,
-        timeout,
-        maxBuffer: 1024 * 1024 * 8,
-        windowsHide: true
+        cwd: config.agyCwd,
+        timeout: config.agyTimeoutMs,
+        maxBuffer: 1024 * 1024 * 10,
+        env: {
+          ...process.env,
+          CI: '1',
+          NO_COLOR: '1',
+          TERM: 'dumb',
+          HOME: process.env.HOME || '/root',
+          PATH: process.env.PATH || '/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+        },
       },
-      (err, stdout = '', stderr = '') => {
-        const cleanOut = stdout.trim();
-        const cleanErr = stderr.trim();
+      (error, stdout, stderr) => {
+        const durationMs = Date.now() - startedAt;
+        const output = cleanOutput(stdout, stderr);
 
-        if (err) {
+        if (error) {
+          logger.error('agy_failed', {
+            durationMs,
+            code: error.code,
+            signal: error.signal,
+            message: error.message,
+          });
+
+          const timeoutMessage = error.killed
+            ? `Antigravity timed out after ${Math.round(config.agyTimeoutMs / 1000)} seconds.`
+            : error.message;
+
           resolve({
             ok: false,
-            output: cleanOut || cleanErr || err.message,
-            error: err.message,
-            code: err.code || null,
-            signal: err.signal || null
+            output: `${timeoutMessage}\n\n${output}`.trim(),
           });
           return;
         }
 
-        resolve({
-          ok: true,
-          output: cleanOut || cleanErr || 'Done.',
-          error: null,
-          code: 0,
-          signal: null
-        });
-      }
+        logger.info('agy_done', { durationMs });
+        resolve({ ok: true, output });
+      },
     );
 
     child.stdin?.end();
