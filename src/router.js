@@ -1,39 +1,51 @@
-import { runAgy } from '../providers/antigravity.js';
+import { runAgy, checkAgyBinary } from '../providers/antigravity.js';
 import { runShell } from './shell.js';
-import { truncate } from '../utils/helpers.js';
+import { config } from './config.js';
+
+const HELP_TEXT = `AI Dev Agent v2 is running.
+
+Commands:
+/health - check bot status
+/agy your prompt - ask Antigravity CLI
+/shell command - optional shell command
+
+Example:
+/agy Say hello in Bangla`;
 
 export async function handleCommand(text) {
-  const input = (text || '').trim();
+  const input = text.trim();
 
   if (input === '/start' || input === '/help') {
-    return [
-      'AI Dev Agent v2 is running.',
-      '',
-      'Commands:',
-      '/health - check bot status',
-      '/agy your prompt - ask Antigravity CLI',
-      '/shell command - optional shell command',
-      '',
-      'Example:',
-      '/agy Say hello in Bangla',
-    ].join('\n');
+    return HELP_TEXT;
   }
 
   if (input === '/health') {
-    return '✅ Bot running. Use /agy Say hello in Bangla';
+    let agyStatus = 'missing';
+    try {
+      await checkAgyBinary();
+      agyStatus = 'available';
+    } catch {
+      agyStatus = 'missing';
+    }
+
+    return `✅ Bot running.
+Antigravity: ${agyStatus}
+AGY_BIN: ${config.agyBin}`;
   }
 
   if (input.startsWith('/agy')) {
-    const prompt = input.replace(/^\/agy\s*/i, '').trim();
+    const prompt = input.replace(/^\/agy(@\w+)?\s*/i, '').trim();
     const result = await runAgy(prompt);
-    return truncate(result.output || 'No output returned.');
+    return result.output || 'No output returned.';
   }
 
   if (input.startsWith('/shell')) {
-    const command = input.replace(/^\/shell\s*/i, '').trim();
-    const result = await runShell(command);
-    return truncate(result.output || 'No output returned.');
+    if (!config.enableShell) {
+      return 'Shell command is disabled. Set ENABLE_SHELL=true to enable it.';
+    }
+    const command = input.replace(/^\/shell(@\w+)?\s*/i, '').trim();
+    return await runShell(command);
   }
 
-  return 'Unknown command. Use /help or /agy your prompt';
+  return HELP_TEXT;
 }

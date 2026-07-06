@@ -1,6 +1,6 @@
 {
   "name": "ai-dev-agent",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Telegram controlled AI development agent powered by Antigravity CLI",
   "type": "module",
   "main": "src/index.js",

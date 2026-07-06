@@ -37,7 +37,7 @@ export function runAgy(prompt) {
           CI: '1',
           NO_COLOR: '1',
           TERM: 'dumb',
-          HOME: process.env.HOME || '/root',
+          HOME: process.env.HOME || '/data',
           PATH: process.env.PATH || '/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
         },
       },
@@ -59,13 +59,13 @@ export function runAgy(prompt) {
 
           resolve({
             ok: false,
-            output: `${timeoutMessage}\n\n${output}`.trim(),
+            output: `${timeoutMessage}\n\n${output || 'No output returned.'}`.trim(),
           });
           return;
         }
 
         logger.info('agy_done', { durationMs });
-        resolve({ ok: true, output });
+        resolve({ ok: true, output: output || 'No output returned.' });
       },
     );
 

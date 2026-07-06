@@ -8,6 +8,13 @@ function isAllowedUser(msg) {
   return config.allowedTelegramUserIds.includes(userId);
 }
 
+async function safeSend(bot, chatId, text, options = {}) {
+  const chunks = String(text || 'No output returned.').match(/[\s\S]{1,3900}/g) || ['No output returned.'];
+  for (const chunk of chunks) {
+    await bot.sendMessage(chatId, chunk, options);
+  }
+}
+
 export function startTelegramBot() {
   const bot = new TelegramBot(config.telegramBotToken, { polling: true });
 
@@ -26,12 +33,12 @@ export function startTelegramBot() {
     });
 
     if (!isAllowedUser(msg)) {
-      await bot.sendMessage(chatId, '⛔ You are not allowed to use this bot.');
+      await safeSend(bot, chatId, '⛔ You are not allowed to use this bot.');
       return;
     }
 
     if (!text.trim()) {
-      await bot.sendMessage(chatId, 'Please send a text command.');
+      await safeSend(bot, chatId, 'Please send a text command.');
       return;
     }
 
@@ -42,13 +49,19 @@ export function startTelegramBot() {
 
     try {
       const response = await handleCommand(text);
-      if (workingMessage) {
+      if (workingMessage && response.length <= 3900) {
         await bot.editMessageText(response, {
           chat_id: chatId,
           message_id: workingMessage.message_id,
         });
       } else {
-        await bot.sendMessage(chatId, response);
+        if (workingMessage) {
+          await bot.editMessageText('✅ Done. Sending output...', {
+            chat_id: chatId,
+            message_id: workingMessage.message_id,
+          });
+        }
+        await safeSend(bot, chatId, response);
       }
     } catch (error) {
       logger.error('telegram_handler_failed', { message: error.message });
@@ -59,7 +72,7 @@ export function startTelegramBot() {
           message_id: workingMessage.message_id,
         });
       } else {
-        await bot.sendMessage(chatId, errorText);
+        await safeSend(bot, chatId, errorText);
       }
     }
   });

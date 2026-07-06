@@ -16,7 +16,7 @@ try {
   validateConfig();
   startHealthServer();
   startTelegramBot();
-  logger.info('ai_dev_agent_started', { version: '2.0.0' });
+  logger.info('ai_dev_agent_started', { version: '2.0.1' });
 } catch (error) {
   logger.error('startup_failed', { message: error.message });
   process.exit(1);

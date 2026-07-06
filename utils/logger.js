@@ -1,15 +1,21 @@
-function log(level, message, meta = {}) {
-  const entry = {
-    time: new Date().toISOString(),
+function log(level, event, data = {}) {
+  const payload = {
     level,
-    message,
-    ...meta,
+    event,
+    time: new Date().toISOString(),
+    ...data,
   };
-  console.log(JSON.stringify(entry));
+  console.log(JSON.stringify(payload));
 }
 
 export const logger = {
-  info: (message, meta) => log('info', message, meta),
-  warn: (message, meta) => log('warn', message, meta),
-  error: (message, meta) => log('error', message, meta),
+  info(event, data) {
+    log('info', event, data);
+  },
+  error(event, data) {
+    log('error', event, data);
+  },
+  warn(event, data) {
+    log('warn', event, data);
+  },
 };

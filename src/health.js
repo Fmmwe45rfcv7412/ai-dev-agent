@@ -7,26 +7,26 @@ export function startHealthServer() {
   const app = express();
 
   app.get('/', (_req, res) => {
-    res.json({ ok: true, service: 'ai-dev-agent', version: '2.0.0' });
+    res.json({
+      ok: true,
+      name: 'AI Dev Agent v2',
+      status: 'running',
+    });
   });
 
   app.get('/health', async (_req, res) => {
-    let agyReady = false;
+    let agy = false;
     try {
-      agyReady = await checkAgyBinary();
+      agy = await checkAgyBinary();
     } catch {
-      agyReady = false;
+      agy = false;
     }
 
     res.json({
       ok: true,
-      service: 'ai-dev-agent',
-      version: '2.0.0',
-      nodeEnv: config.nodeEnv,
+      status: 'running',
+      antigravity: agy ? 'available' : 'missing',
       agyBin: config.agyBin,
-      agyCwd: config.agyCwd,
-      agyReady,
-      uptime: process.uptime(),
     });
   });
 
